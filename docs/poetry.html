@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대화형 Conda + Poetry 설정 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            scroll-behavior: smooth;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+        .step-connector::after {
+            content: '▼';
+            display: block;
+            font-size: 1.5rem;
+            color: #9ca3af;
+            margin: 0.5rem 0;
+        }
+        .step-card {
+            transition: all 0.3s ease-in-out;
+        }
+        .step-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .nav-link {
+            transition: color 0.2s;
+        }
+        .nav-link:hover {
+            color: #0d9488;
+        }
+        .active-nav {
+            color: #0d9488;
+            font-weight: 700;
+            border-bottom: 2px solid #0d9488;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-800">
+    <!-- Chosen Palette: Warm Neutrals (bg-stone-50, text-slate-800) with Teal accent (teal-600) -->
+    <!-- Application Structure Plan: A task-oriented, single-page application with a sticky navigation bar. The structure is designed for educational purposes, guiding the user from the 'Why' (Introduction) to the 'How' (Workflow) and 'What's next' (Practical Tips). This non-linear, hub-like navigation is more user-friendly for beginners than a long, linear document. It breaks down complex information into digestible, interactive sections: 1. Hero (Why it matters), 2. Tools (Quick reference for Conda/Poetry), 3. Workflow (Interactive step-by-step guide), 4. Comparison (Visual chart), 5. Practical Guide (Accordion FAQ). This structure prioritizes clarity and engagement over mirroring the source document's layout. -->
+    <!-- Visualization & Content Choices: 
+        1. Report Info: Step-by-step setup process -> Goal: Simplify and guide -> Viz/Method: Interactive HTML/CSS flowchart -> Interaction: Users click each step to reveal details (command, explanation). Justification: Reduces cognitive load for beginners compared to a long text block. Method: Tailwind CSS for layout, JS for click-to-reveal.
+        2. Report Info: Conda vs. Poetry comparison table -> Goal: Compare strengths visually -> Viz/Method: Bar Chart -> Interaction: Hovering over bars shows tooltips with details. Justification: A chart is more engaging and makes comparison intuitive. Library: Chart.js.
+        3. Report Info: Command lists and FAQs -> Goal: Provide quick, accessible reference -> Viz/Method: Interactive cards and accordion -> Interaction: Click to expand. Justification: Hides complexity until needed, making the UI cleaner. Method: JS toggles visibility.
+        CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-teal-700">Conda + Poetry 가이드</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#intro" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">소개</a>
+                        <a href="#tools" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">핵심 도구</a>
+                        <a href="#workflow" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">설정 방법</a>
+                        <a href="#comparison" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">도구 비교</a>
+                        <a href="#practical-guide" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">활용 팁</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        <section id="intro" class="text-center mb-16 md:mb-24 scroll-mt-16">
+            <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">파이썬 프로젝트, 이제 깔끔하게 관리하세요</h2>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600 mb-8">
+                여러 프로젝트를 진행하다 보면 라이브러리 버전 충돌로 어려움을 겪곤 합니다. 이 가이드는 기존 Miniconda 환경은 그대로 두고, Poetry를 함께 사용하여 랭체인(LangChain) 실습을 위한 독립적이고 재현 가능한 개발 환경을 만드는 가장 쉬운 방법을 안내합니다.
+            </p>
+            <div class="flex justify-center items-center space-x-4">
+                <div class="p-6 bg-white rounded-xl shadow-md border border-slate-200">
+                    <span class="text-4xl">📦</span>
+                    <p class="mt-2 font-semibold">Miniconda</p>
+                    <p class="text-sm text-slate-500">환경 격리</p>
+                </div>
+                <span class="text-4xl font-light text-slate-400">+</span>
+                <div class="p-6 bg-white rounded-xl shadow-md border border-slate-200">
+                    <span class="text-4xl">📜</span>
+                    <p class="mt-2 font-semibold">Poetry</p>
+                    <p class="text-sm text-slate-500">의존성 관리</p>
+                </div>
+                <span class="text-4xl font-light text-slate-400">=</span>
+                 <div class="p-6 bg-teal-50 rounded-xl shadow-lg border border-teal-200">
+                    <span class="text-4xl">🚀</span>
+                    <p class="mt-2 font-bold text-teal-800">완벽한 실습 환경</p>
+                    <p class="text-sm text-teal-600">안정적 & 재현 가능</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="tools" class="mb-16 md:mb-24 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-center mb-10">핵심 도구 익히기</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-2xl font-semibold mb-4 text-center">Miniconda: 환경 관리자</h3>
+                    <div class="space-y-3">
+                        <div class="collapsible-card bg-white p-4 rounded-lg shadow-sm border cursor-pointer">
+                            <h4 class="font-semibold">conda create</h4>
+                            <div class="details hidden mt-2 text-sm text-slate-600">
+                                <p>새로운 가상 환경을 생성합니다. 프로젝트별로 독립된 공간을 만들어 충돌을 방지합니다.</p>
+                                <pre class="bg-slate-100 p-2 rounded mt-2 text-xs"><code>conda create -n &lt;환경이름&gt; python=&lt;버전&gt; -y</code></pre>
+                            </div>
+                        </div>
+                        <div class="collapsible-card bg-white p-4 rounded-lg shadow-sm border cursor-pointer">
+                            <h4 class="font-semibold">conda activate / deactivate</h4>
+                            <div class="details hidden mt-2 text-sm text-slate-600">
+                                <p>생성한 환경을 활성화하거나 비활성화합니다. 작업할 환경으로 들어가거나 나올 때 사용합니다.</p>
+                                <pre class="bg-slate-100 p-2 rounded mt-2 text-xs"><code>conda activate &lt;환경이름&gt;</code></pre>
+                            </div>
+                        </div>
+                        <div class="collapsible-card bg-white p-4 rounded-lg shadow-sm border cursor-pointer">
+                            <h4 class="font-semibold">conda env list</h4>
+                            <div class="details hidden mt-2 text-sm text-slate-600">
+                                <p>컴퓨터에 설치된 모든 conda 환경 목록을 보여줍니다. 현재 활성화된 환경은 `*`로 표시됩니다.</p>
+                                <pre class="bg-slate-100 p-2 rounded mt-2 text-xs"><code>conda env list</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-semibold mb-4 text-center">Poetry: 의존성 관리자</h3>
+                    <div class="space-y-3">
+                        <div class="collapsible-card bg-white p-4 rounded-lg shadow-sm border cursor-pointer">
+                            <h4 class="font-semibold">poetry init</h4>
+                            <div class="details hidden mt-2 text-sm text-slate-600">
+                                <p>새로운 파이썬 프로젝트를 시작합니다. 프로젝트의 설정 파일인 `pyproject.toml`을 생성합니다.</p>
+                                <pre class="bg-slate-100 p-2 rounded mt-2 text-xs"><code>poetry init</code></pre>
+                            </div>
+                        </div>
+                        <div class="collapsible-card bg-white p-4 rounded-lg shadow-sm border cursor-pointer">
+                            <h4 class="font-semibold">poetry add</h4>
+                            <div class="details hidden mt-2 text-sm text-slate-600">
+                                <p>프로젝트에 필요한 라이브러리를 추가합니다. `pyproject.toml` 파일에 자동으로 기록됩니다.</p>
+                                <pre class="bg-slate-100 p-2 rounded mt-2 text-xs"><code>poetry add &lt;패키지이름&gt;</code></pre>
+                            </div>
+                        </div>
+                        <div class="collapsible-card bg-white p-4 rounded-lg shadow-sm border cursor-pointer">
+                            <h4 class="font-semibold">poetry install</h4>
+                            <div class="details hidden mt-2 text-sm text-slate-600">
+                                <p>`pyproject.toml`과 `poetry.lock` 파일을 기반으로 모든 라이브러리를 정확한 버전으로 설치합니다.</p>
+                                <pre class="bg-slate-100 p-2 rounded mt-2 text-xs"><code>poetry install</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="workflow" class="mb-16 md:mb-24 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-center mb-4">단계별 설정 방법</h2>
+            <p class="text-center text-slate-600 mb-10">아래 단계를 순서대로 따라 하면 누구나 쉽게 환경 설정을 마칠 수 있습니다.</p>
+            <div class="flex flex-col items-center">
+                
+                <div id="step-1" class="step-card w-full md:w-2/3 lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border-2 border-teal-500 cursor-pointer">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-teal-700">1단계: Conda 환경 생성</h3>
+                        <span class="text-2xl transform transition-transform duration-300">▶</span>
+                    </div>
+                    <div class="details hidden mt-4 text-slate-700">
+                        <p class="mb-2">랭체인 실습만을 위한 독립된 공간을 만듭니다. 기존 환경과 분리되어 안전합니다.</p>
+                        <div class="relative">
+                            <pre class="bg-slate-800 text-white p-3 rounded-md text-sm"><code>conda create -n langchain_course python=3.10 -y</code></pre>
+                            <button class="copy-btn absolute top-2 right-2 bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-500">복사</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-connector"></div>
+
+                <div id="step-2" class="step-card w-full md:w-2/3 lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border cursor-pointer">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold">2단계: Conda 환경 활성화</h3>
+                        <span class="text-2xl transform transition-transform duration-300">▶</span>
+                    </div>
+                    <div class="details hidden mt-4 text-slate-700">
+                        <p class="mb-2">방금 만든 `langchain_course` 환경으로 들어갑니다. 이제부터 모든 작업은 이 안에서 이루어집니다.</p>
+                        <div class="relative">
+                            <pre class="bg-slate-800 text-white p-3 rounded-md text-sm"><code>conda activate langchain_course</code></pre>
+                            <button class="copy-btn absolute top-2 right-2 bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-500">복사</button>
+                        </div>
+                        <p class="text-xs mt-2 text-slate-500">터미널 프롬프트 앞에 `(langchain_course)`가 보이면 성공입니다.</p>
+                    </div>
+                </div>
+
+                <div class="step-connector"></div>
+
+                <div id="step-3" class="step-card w-full md:w-2/3 lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border cursor-pointer">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold">3단계: Poetry 설치</h3>
+                        <span class="text-2xl transform transition-transform duration-300">▶</span>
+                    </div>
+                    <div class="details hidden mt-4 text-slate-700">
+                        <p class="mb-2">활성화된 Conda 환경 안에 Poetry를 설치합니다. `pip` 대신 `conda`로 설치하는 것이 더 안정적입니다.</p>
+                        <div class="relative">
+                            <pre class="bg-slate-800 text-white p-3 rounded-md text-sm"><code>conda install poetry</code></pre>
+                            <button class="copy-btn absolute top-2 right-2 bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-500">복사</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-connector"></div>
+
+                <div id="step-4" class="step-card w-full md:w-2/3 lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border cursor-pointer">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold">4단계: 프로젝트 시작 및 라이브러리 추가</h3>
+                        <span class="text-2xl transform transition-transform duration-300">▶</span>
+                    </div>
+                    <div class="details hidden mt-4 text-slate-700">
+                        <p class="mb-2">프로젝트 폴더를 만들고, Poetry로 프로젝트를 초기화한 뒤, 필요한 라이브러리들을 추가합니다.</p>
+                        <div class="relative mb-2">
+                             <pre class="bg-slate-800 text-white p-3 rounded-md text-sm"><code>mkdir my_langchain_project && cd my_langchain_project
+poetry init -n
+poetry add langchain openai streamlit</code></pre>
+                            <button class="copy-btn absolute top-2 right-2 bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-500">복사</button>
+                        </div>
+                        <p class="text-xs mt-2 text-slate-500">`poetry init -n`은 질문 없이 기본값으로 `pyproject.toml`을 생성합니다.</p>
+                    </div>
+                </div>
+                
+                <div class="step-connector"></div>
+
+                <div id="step-5" class="step-card w-full md:w-2/3 lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border cursor-pointer">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold">5단계: 의존성 잠금 (가장 중요!)</h3>
+                        <span class="text-2xl transform transition-transform duration-300">▶</span>
+                    </div>
+                    <div class="details hidden mt-4 text-slate-700">
+                        <p class="mb-2">모든 라이브러리의 정확한 버전을 `poetry.lock` 파일에 기록합니다. 이 파일을 공유하면 모든 사람이 동일한 환경을 100% 재현할 수 있습니다.</p>
+                        <div class="relative">
+                            <pre class="bg-slate-800 text-white p-3 rounded-md text-sm"><code>poetry lock</code></pre>
+                            <button class="copy-btn absolute top-2 right-2 bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-500">복사</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="comparison" class="mb-16 md:mb-24 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-center mb-4">Conda vs Poetry: 역할 비교</h2>
+            <p class="text-center text-slate-600 mb-10">두 도구는 경쟁 관계가 아닌, 각자의 역할에 충실한 협력 관계입니다.</p>
+            <div class="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-lg border">
+                <div class="chart-container">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="practical-guide" class="scroll-mt-16">
+            <h2 class="text-3xl font-bold text-center mb-10">실전 활용 팁 (FAQ)</h2>
+            <div class="max-w-4xl mx-auto space-y-4">
+                <div class="accordion-item bg-white rounded-lg shadow-sm border">
+                    <button class="accordion-button flex justify-between items-center w-full p-5 text-left font-semibold">
+                        VS Code에서 이 환경을 어떻게 사용하나요?
+                        <span class="text-xl text-slate-500 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content hidden p-5 pt-0 text-slate-600">
+                        <p>1. 터미널에서 `conda activate langchain_course`로 환경을 활성화합니다.</p>
+                        <p>2. 같은 터미널에서 `code .` 명령어로 VS Code를 실행하면 자동으로 환경을 인식합니다.</p>
+                        <p>3. 만약 자동으로 인식되지 않으면, `Ctrl+Shift+P` (macOS: `Cmd+Shift+P`)를 누르고 `Python: Select Interpreter`를 검색하여 `langchain_course` 환경의 파이썬 실행 파일을 직접 선택해주세요.</p>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-lg shadow-sm border">
+                    <button class="accordion-button flex justify-between items-center w-full p-5 text-left font-semibold">
+                        "ModuleNotFoundError" 오류가 발생해요.
+                        <span class="text-xl text-slate-500 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content hidden p-5 pt-0 text-slate-600">
+                        <p>가장 흔한 원인은 올바른 Conda 환경이 활성화되지 않았기 때문입니다. 터미널에 `(langchain_course)`가 표시되어 있는지 다시 확인하고, 스크립트를 실행하기 전에 반드시 `conda activate langchain_course`를 실행하세요.</p>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-lg shadow-sm border">
+                    <button class="accordion-button flex justify-between items-center w-full p-5 text-left font-semibold">
+                        다른 사람과 프로젝트를 공유하려면 어떻게 해야 하나요?
+                        <span class="text-xl text-slate-500 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content hidden p-5 pt-0 text-slate-600">
+                        <p>프로젝트 폴더 전체를 공유하면 됩니다. 특히 `pyproject.toml`과 `poetry.lock` 파일이 핵심입니다. 프로젝트를 받은 사람은 다음 두 단계만 거치면 됩니다.</p>
+                        <p>1. `conda activate langchain_course`로 환경 활성화</p>
+                        <p>2. 프로젝트 폴더로 이동 후 `poetry install` 실행. `poetry.lock` 파일 덕분에 모든 라이브러리가 정확히 동일한 버전으로 설치됩니다.</p>
+                    </div>
+                </div>
+                 <div class="accordion-item bg-white rounded-lg shadow-sm border">
+                    <button class="accordion-button flex justify-between items-center w-full p-5 text-left font-semibold">
+                        라이브러리를 추가하거나 업데이트하고 싶어요.
+                        <span class="text-xl text-slate-500 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content hidden p-5 pt-0 text-slate-600">
+                        <p><strong>추가:</strong> `poetry add <패키지이름>`</p>
+                        <p><strong>업데이트:</strong> `poetry update`</p>
+                        <p class="mt-2"><strong>주의:</strong> `pip install`은 `pyproject.toml` 파일과 동기화되지 않으므로 절대 사용하지 마세요. 항상 `poetry` 명령어를 사용해야 합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-800 text-white mt-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-slate-400">
+            <p>이 대화형 가이드는 랭체인 실습을 위한 안정적인 환경 설정을 돕기 위해 제작되었습니다.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            const workflowSteps = document.querySelectorAll('.step-card');
+            workflowSteps.forEach((step, index) => {
+                step.addEventListener('click', () => {
+                    const details = step.querySelector('.details');
+                    const icon = step.querySelector('span');
+                    
+                    const isOpening = details.classList.contains('hidden');
+
+                    workflowSteps.forEach(s => {
+                        s.querySelector('.details').classList.add('hidden');
+                        s.querySelector('span').classList.remove('rotate-90');
+                        s.classList.remove('border-teal-500', 'border-2');
+                    });
+
+                    if (isOpening) {
+                        details.classList.remove('hidden');
+                        icon.classList.add('rotate-90');
+                        step.classList.add('border-teal-500', 'border-2');
+                    }
+                });
+            });
+
+            const collapsibleCards = document.querySelectorAll('.collapsible-card');
+            collapsibleCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    card.querySelector('.details').classList.toggle('hidden');
+                });
+            });
+
+            const accordionItems = document.querySelectorAll('.accordion-item');
+            accordionItems.forEach(item => {
+                const button = item.querySelector('.accordion-button');
+                const content = item.querySelector('.accordion-content');
+                const icon = button.querySelector('span');
+
+                button.addEventListener('click', () => {
+                    const isHidden = content.classList.contains('hidden');
+                    
+                    accordionItems.forEach(otherItem => {
+                        otherItem.querySelector('.accordion-content').classList.add('hidden');
+                        otherItem.querySelector('.accordion-button span').textContent = '+';
+                        otherItem.querySelector('.accordion-button span').classList.remove('rotate-45');
+                    });
+
+                    if (isHidden) {
+                        content.classList.remove('hidden');
+                        icon.textContent = '-';
+                        icon.classList.add('rotate-45');
+                    } else {
+                        content.classList.add('hidden');
+                        icon.textContent = '+';
+                        icon.classList.remove('rotate-45');
+                    }
+                });
+            });
+
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            copyButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const code = btn.previousElementSibling.textContent;
+                    const textarea = document.createElement('textarea');
+                    textarea.value = code;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    
+                    const originalText = btn.textContent;
+                    btn.textContent = '복사 완료!';
+                    btn.classList.add('bg-green-500');
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.classList.remove('bg-green-500');
+                    }, 2000);
+                });
+            });
+
+            const comparisonChartCtx = document.getElementById('comparisonChart').getContext('2d');
+            const comparisonChart = new Chart(comparisonChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['환경 격리', 'Python 의존성 관리', '재현성', '비-Python 의존성', '패키징 및 배포'],
+                    datasets: [{
+                        label: 'Conda 강점',
+                        data: [5, 2, 3, 5, 2],
+                        backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                        borderColor: 'rgba(34, 197, 94, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Poetry 강점',
+                        data: [3, 5, 5, 1, 5],
+                        backgroundColor: 'rgba(13, 148, 136, 0.6)',
+                        borderColor: 'rgba(13, 148, 136, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 5,
+                            title: {
+                                display: true,
+                                text: '강점 (5점이 가장 높음)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Conda와 Poetry의 주요 기능 강점 비교',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.x !== null) {
+                                        label += context.parsed.x + '점';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 80) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active-nav');
+                    if (link.getAttribute('href').includes(current)) {
+                        link.classList.add('active-nav');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
